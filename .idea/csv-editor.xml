@@ -3,6 +3,13 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
+        <entry key="C:\Users\hsera\Downloads\exports_top_traffic_source_medium_000000000000.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\exports\top_traffic_source_medium.csv">
           <value>
             <Attribute>
