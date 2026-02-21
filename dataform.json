@@ -1,0 +1,7 @@
+{
+  "defaultSchema": "ga4_dataform",
+  "assertionSchema": "ga4_dataform_assertions",
+  "warehouse": "bigquery",
+  "defaultDatabase": "p-ga4-dataform-demo-dev",
+  "defaultLocation": "US"
+}

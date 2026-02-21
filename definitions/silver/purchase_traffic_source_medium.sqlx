@@ -1,0 +1,101 @@
+/**
+ * ====================================================================================================
+ * SILVER LAYER — purchase_traffic_source_medium
+ * ====================================================================================================
+ *
+ * Purpose
+ * -------
+ * Extracts and denormalises purchase events from the raw GA4 export, retaining
+ * only the columns needed for downstream traffic-source analysis.
+ *
+ * Business rules
+ * --------------
+ * 1. Only rows where event_name = 'purchase' are kept.
+ * 2. Rows whose traffic_source.medium contains the marker "(data deleted)"
+ *    are excluded (GDPR / consent-related deletions in the sample dataset).
+ * 3. ga_session_id is extracted from the nested event_params ARRAY.
+ * 4. total_items is the sum of item quantities from the nested items ARRAY,
+ *    which feeds the gold-layer "purchased items" KPIs.
+ * 5. No aggregation is applied — this is a row-level fact table.
+ *
+ * Persistence
+ * -----------
+ * Materialised as an incremental table partitioned by event_date.
+ * On each scheduled run only new date partitions are appended, making the
+ * workflow efficient for daily execution.
+ *
+ * Grain: one row per purchase event (user x session x event timestamp).
+ *
+ * Lineage
+ * -------
+ * Bronze [ga4_events declaration] --> Silver [this table] --> Gold [top_traffic_source_medium]
+ * ====================================================================================================
+ */
+
+config {
+  type: "incremental",
+  schema: "ga4_dataform",
+  description: "Silver layer: denormalised purchase events with traffic source medium. Filters out deleted data and unpacks nested GA4 fields. Each row represents one purchase event.",
+  tags: ["silver", "daily"],
+  bigquery: {
+    partitionBy: "event_date",
+    clusterBy: ["traffic_source_medium"]
+  },
+  uniqueKey: ["event_date", "user_pseudo_id", "ga_session_id", "event_timestamp"],
+  assertions: {
+    nonNull: ["event_date", "user_pseudo_id"],
+    rowConditions: [
+      "event_value_in_usd >= 0 OR event_value_in_usd IS NULL"
+    ]
+  }
+}
+
+WITH
+	bronze_ga4_events AS
+	(
+		SELECT
+			PARSE_DATE('%Y%m%d', event_date) AS event_date,
+			traffic_source.medium AS traffic_source_medium,
+			user_pseudo_id,
+			(
+				SELECT
+					ep.value.int_value
+				FROM
+					UNNEST(event_params) AS ep
+				WHERE
+					ep.key = 'ga_session_id'
+			) AS ga_session_id,
+			event_value_in_usd,
+			event_timestamp,
+			-- Sum of quantities across all items in this purchase event.
+			-- Falls back to counting distinct items when quantity is null.
+			(
+				SELECT
+					COALESCE(SUM(item.quantity), COUNT( *))
+				FROM
+					UNNEST(items) AS item
+			) AS total_items
+		FROM
+			--`bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_20201101`
+			${ref("events_*")}
+		WHERE
+			event_name = 'purchase'
+	)
+SELECT
+	event_date,
+	traffic_source_medium,
+	user_pseudo_id,
+	ga_session_id,
+	event_value_in_usd,
+	event_timestamp,
+	total_items
+FROM
+	bronze_ga4_events
+WHERE
+	(traffic_source_medium IS NULL
+	OR traffic_source_medium NOT LIKE '%(data deleted)%')
+
+${when(incremental(), `
+  -- Incremental filter: only process dates newer than the latest already loaded
+  AND event_date > (SELECT MAX(event_date) FROM ${self()})
+`)}

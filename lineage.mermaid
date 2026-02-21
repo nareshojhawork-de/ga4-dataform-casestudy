@@ -1,0 +1,10 @@
+---
+title: GA4 Dataform Pipeline — Data Lineage
+---
+graph LR
+    A["<b>BRONZE</b><br/>ga4_events<br/><i>declaration</i>"] -->|"filter: purchase events<br/>clean: remove deleted data<br/>extract: session_id, items"| B["<b>SILVER</b><br/>purchase_traffic_source_medium<br/><i>incremental table</i>"]
+    B -->|"aggregate: monthly<br/>KPIs: value, items, avg"| C["<b>GOLD</b><br/>top_traffic_source_medium<br/><i>table</i>"]
+
+    style A fill:#CD7F32,stroke:#8B4513,color:#fff
+    style B fill:#C0C0C0,stroke:#808080,color:#000
+    style C fill:#FFD700,stroke:#DAA520,color:#000

@@ -1,0 +1,8 @@
+{
+  "name": "ga4-dataform-casestudy",
+  "version": "1.0.0",
+  "description": "GA4 with Dataform Case Study — Bronze/Silver/Gold medallion architecture over the GA4 public sample dataset.",
+  "dependencies": {
+    "@dataform/core": "2.9.0"
+  }
+}

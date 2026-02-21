@@ -1,0 +1,66 @@
+/**
+ * ====================================================================================================
+ * GOLD LAYER — top_traffic_source_medium
+ * ====================================================================================================
+ *
+ * Purpose
+ * -------
+ * Business-ready report table that ranks traffic source mediums by purchase
+ * value and volume on a monthly basis.
+ *
+ * KPIs (per traffic_source_medium per month)
+ * ------------------------------------------
+ * 1. purchased_value_usd        — Total purchase value in USD.
+ * 2. total_purchased_items       — Total number of purchased items.
+ * 3. total_purchases             — Total number of purchase events.
+ * 4. avg_items_per_purchase      — Average number of items per purchase event.
+ *
+ * Persistence
+ * -----------
+ * Materialised as a **table** (full rebuild).  Because this is a small
+ * aggregated report built on top of the incremental silver layer, a full
+ * rebuild is cheap and guarantees correctness without merge complexity.
+ *
+ * Grain: one row per (report_month × traffic_source_medium).
+ *
+ * Lineage
+ * -------
+ * Bronze [ga4_events] --> Silver [purchase_traffic_source_medium] --> Gold [this table]
+ * ====================================================================================================
+ */
+
+config {
+  type: "table",
+  schema: "ga4_dataform",
+  description: "Gold layer: monthly aggregation of purchase KPIs by traffic source medium. Ranks mediums by value and volume to identify the most impactful acquisition channels.",
+  tags: ["gold", "daily", "report"],
+  bigquery: {
+    clusterBy: ["report_month"]
+  },
+  assertions: {
+    nonNull: ["report_month", "traffic_source_medium"],
+    rowConditions: [
+      "total_purchases > 0",
+      "avg_items_per_purchase >= 0"
+    ]
+  }
+}
+
+SELECT
+	-- Monthly grain: truncate event_date to first day of the month
+	DATE_TRUNC(event_date, MONTH) AS report_month,
+	-- Dimension
+	COALESCE(traffic_source_medium, '(not set)') AS traffic_source_medium,
+	-- KPI 1: Total purchase value in USD
+	ROUND(SUM(event_value_in_usd), 2) AS purchased_value_usd,
+	-- KPI 2: Total number of purchased items across all purchase events
+	SUM(total_items) AS total_purchased_items,
+	-- KPI 3: Total number of purchase events (transactions)
+	COUNT( *) AS total_purchases,
+	-- KPI 4: Average number of items per purchase event
+	ROUND(SAFE_DIVIDE(SUM(total_items), COUNT( *)), 2) AS avg_items_per_purchase
+FROM
+	${ref("purchase_traffic_source_medium") }
+GROUP BY
+	report_month,
+	traffic_source_medium

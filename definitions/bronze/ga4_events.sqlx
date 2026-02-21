@@ -1,0 +1,29 @@
+/**
+ * ====================================================================================================
+ * BRONZE LAYER — Source Declaration
+ * ====================================================================================================
+ *
+ * Declares the public Google Analytics 4 obfuscated sample e-commerce dataset
+ * as an external source so that downstream Dataform actions can reference it
+ * via `${ref("ga4_events")}`.
+ *
+ * Dataset:  bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*
+ * Docs:     https://support.google.com/analytics/answer/7029846
+ *
+ * The wildcard suffix (events_*) means BigQuery scans across all date-sharded
+ * tables.  Downstream queries can use the pseudo-column `_TABLE_SUFFIX` to
+ * filter by date range.
+ *
+ * Persistence: Declaration (no materialisation — this is a pointer only).
+ * ====================================================================================================
+ */
+
+const constants = require("../includes/constants");
+
+config {
+  type: "declaration",
+  database: constants.GA4_SOURCE_PROJECT,
+  schema: constants.GA4_SOURCE_DATASET,
+  name: "events_*",
+  description: "Public GA4 obfuscated sample e-commerce event data (date-sharded). Contains raw event-level rows exported from a Google Analytics 4 property."
+}

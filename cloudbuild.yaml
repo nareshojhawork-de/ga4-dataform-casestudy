@@ -1,0 +1,38 @@
+# cloudbuild.yaml
+# ============================================================================
+# CI pipeline: validates Dataform compilation on every push / PR.
+# This does NOT execute queries — it only checks that all .sqlx files compile
+# without errors and that the dependency graph is valid.
+#
+# Usage:
+#   Set up a Cloud Build trigger connected to your Git repository.
+#   Trigger on: push to any branch, or on pull requests to main.
+# ============================================================================
+
+steps:
+  # Step 1: Install Dataform CLI
+  - name: 'node:18-slim'
+    entrypoint: 'npm'
+    args: ['install', '-g', '@dataform/cli@2.9.0']
+    id: 'install-dataform'
+
+  # Step 2: Install project dependencies
+  - name: 'node:18-slim'
+    entrypoint: 'npm'
+    args: ['install']
+    dir: '.'
+    id: 'npm-install'
+    waitFor: ['install-dataform']
+
+  # Step 3: Compile — validates SQL syntax, dependency graph, assertions
+  - name: 'node:18-slim'
+    entrypoint: 'npx'
+    args: ['dataform', 'compile']
+    dir: '.'
+    id: 'compile'
+    waitFor: ['npm-install']
+
+timeout: '300s'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

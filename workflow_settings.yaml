@@ -1,0 +1,8 @@
+defaultProject: p-ga4-dataform-demo-dev
+defaultLocation: US
+defaultDataset: ga4_dataform
+defaultAssertionDataset: ga4_dataform_assertions
+dataformCoreVersion: 2.9.0
+vars:
+  ga4SourceProject: bigquery-public-data
+  ga4SourceDataset: ga4_obfuscated_sample_ecommerce
